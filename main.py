@@ -2,78 +2,81 @@
 import cv2
 import numpy
 import time
-import color_transfer
+from PIL import Image, ImageOps, ImageDraw, ImageEnhance
 
-from PIL import Image, ImageOps, ImageDraw
+def detect(img, classifier):
+    """Função de detecção de padrão
 
-# Carregamento um arquivo de treinamento para reconhecimento de padrões
-# específicos na imagem em um objeto classificador. O arquivo selecionado
-# contem as informações necessárias para detecção de faces.
-cascade = cv2.CascadeClassifier("haarcascade_frontalface_alt.xml")
+        Entrada:
+                img: uma imagem
+                classifier: o classificador representando qual padrão deve ser
+                            identificado
 
-# Função de detecção de padrão
-# Entrada: uma imagem
-# Saída:   as coordenadas de um retângulo que contem o padrão indicado
-#          pelo classificador e a imagem
-def detect(img):
+        Saída: as coordenadas dos retângulo que contém o padrão indicado
+               pelo classificador e a imagem
+
+    """
     # Determina as dimensões mínimas do subconjunto da imagem onde o
-    # padrão deverá ser detectado. Valores pequenos aumentam a distância de
-    # visão do robô detector, mas tornam o processamento demorado.
-    min_rectangle = (100,100)
+    # padrão deverá ser detectado.
+    min_rectangle = (60,60)
 
-    rects = cascade.detectMultiScale(img, 1.2, 3, minSize=min_rectangle)
+    rects = classifier.detectMultiScale(img, 1.2, 3, minSize=min_rectangle)
 
     if len(rects) == 0:
         return [], img
     rects[:, 2:] += rects[:, :2]
     return rects, img
 
-# Função para desenhar um retângulo sobre cada padrão identificado
-# Entrada: as coordenadas do retângulo que contem o padrão identificado
-#          e a imagem que deve ser marcada;
-# Saída    a imagem devidamente marcada.
 def box(rects, img):
+    """Desenha um retângulo sobre cada face identificada.
+
+        Entrada:
+                rects: as coordenadas dos retângulos a serem desenhados.
+                img: a imagem.
+
+        Retorno:
+                A imagem de entrada, devidamente marcada.
+
+    """
+
     for x1, y1, x2, y2 in rects:
         cv2.rectangle(img, (x1, y1), (x2, y2), (127, 255, 0), 2)
     return img
 
 def crop(img, startx, endx, starty, endy):
-    """Crop an image.
+    """Recorta uma imagem.
 
         Args:
-            img: a cv2 image.
-            startx: starting pixel in x direction.
-            endx: ending pixel in x direction.
-            starty: starting pixel in y direction.
-            endy: ending pixel in y direction.
+            img: uma imagem representada por um numpy array.
+            startx: pixel inicial na horizontal.
+            endx: pixel final na horizontal.
+            starty: pixel inicial na vertical.
+            endy: pixel final na vertical.
 
-        Returns:
-            The input cv2 image, cropped.
-
-        Raises:
+        Retorno:
+            A subimagem contida no retângulo especificado.
 
     """
     return img[starty:endy, startx:endx]
 
 def resize(img, width=None, height=None):
-    """Resize an image.
+    """Redimensiona uma imagem.
 
         Args:
-            img: a cv2 image.
-            width: new width.
-            height: new height.
+            img: uma imagem representada por um numpy array.
+            width: nova largura.
+            height: nova altura.
 
-        Returns:
-            The input cv2 image, resized to new width and height.
-
-        Raises:
+        Retorno:
+            A imagem de entrada, nas dimensões especificadas.
 
     """
 
-    # Get initial height and width
+    # Obtem altura e largura iniciais
     (h, w) = img.shape[:2];
 
-    # If just one of the new size parameters is given, keep aspect ratio
+    # Se apenas um dos parâmetros é dado, calcula o segundo de forma a
+    # manter o aspect ratio.
     if width > 0 and height == None:
         height = int(h*width/w);
     elif height > 0 and width == None:
@@ -81,14 +84,47 @@ def resize(img, width=None, height=None):
     elif height == None and width == None:
         return img;
 
-    # Choose interpolation method based on type of operation, shrink or enlarge
+    # Escolhe o método de interpolação baseado no tipo de operação
     if width*height < w*h:
         return cv2.resize(img, (width, height), interpolation = cv2.INTER_AREA);
     else:
         return cv2.resize(img, (width, height), interpolation = cv2.INTER_LINEAR);
 
+
+# Os dois métodos abaixo foram extraídos de um pequeno script escrito por
+# robertskmiles. O primeiro método obtem a cor média de uma imagem.
+# O segundo método ajusta o brilho de uma imagem de forma que ela assuma a cor
+# média especificada pelo parâmetro col. Link a seguir:
+# https://gist.github.com/robertskmiles/3228852#file-face_replace-py
+
+def meancol(source):
+	"""Find the mean colour of the given image"""
+	onepix = source.copy()
+	onepix.thumbnail((1,1),Image.ANTIALIAS)
+	return onepix.getpixel((0,0))
+
+def adjust(im, col, startcol=None):
+	"""Adjust the image such that its mean colour is 'col'"""
+	if startcol is None:
+		startcol = meancol(im)
+	rband, gband, bband = im.split()
+	rbri, gbri, bbri =  ImageEnhance.Brightness(rband), \
+                        ImageEnhance.Brightness(gband), \
+                        ImageEnhance.Brightness(bband)
+	rband = rbri.enhance((float(col[0]) / float(startcol[0])))
+	gband = gbri.enhance((float(col[1]) / float(startcol[1])))
+	bband = bbri.enhance((float(col[2]) / float(startcol[2])))
+	im = Image.merge("RGB",(rband, gband, bband))
+	return im
+
+
 # Programa principal
 if __name__ == '__main__':
+
+    # Carregamento um arquivo de treinamento para reconhecimento de padrões
+    # específicos na imagem em um objeto classificador. O arquivo selecionado
+    # contem as informações necessárias para detecção de faces.
+    classifier = cv2.CascadeClassifier("haarcascade_frontalface_alt.xml")
 
     # Inicia uma captura de vídeo a partir do primeiro dispositivo de vídeo
     # encontrado no computador. Os frames do vídeo serão capturados
@@ -103,12 +139,10 @@ if __name__ == '__main__':
         (_,frame) = camera.read()
         # redimensiona o frame
         #frame = cv2.resize(frame, (320, 240))
-        # altera o sistema de cores da imagem para grayscale (preto e branco)
-        #frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         # Realiza uma detecção pelo padrão indicado no classificador sobre
         # o frame e desenha um retângulo sobre cada padrão identificado
-        (rects, frame) = detect(frame)
+        (rects, frame) = detect(frame, classifier)
         #frame = box(rects, frame)
 
         face1 = None
@@ -127,18 +161,20 @@ if __name__ == '__main__':
             face1 = resize(face1, h2, w2)
             face2 = resize(face2, h1, w1)
 
-            # Adjust brightness of each face
-            face1 = color_transfer.color_transfer(face2, face1)
-            face2 = color_transfer.color_transfer(face1, face2)
-
             # Alpha masking is easier with PIL, so convert to PIL images
             frame_pil = Image.fromarray(frame)
             face1_pil = Image.fromarray(face1)
             face2_pil = Image.fromarray(face2)
 
+            # Adjust brightness of each face
+            face1_avgcolor = meancol(face1_pil)
+            face2_avgcolor = meancol(face2_pil)
+            face1_pil = adjust(face1_pil, face2_avgcolor)
+            face2_pil = adjust(face2_pil, face1_avgcolor)
+
             # Generate alpha mask from file
-            mask1 = Image.open('mask.png').resize((w2,h2))
-            mask2 = Image.open('mask.png').resize((w1,h1))
+            mask1 = Image.open('mask2.png').resize((w2,h2))
+            mask2 = Image.open('mask2.png').resize((w1,h1))
 
             # Swap faces using alpha masks
             frame_pil.paste(face1_pil, (f2x1, f2y1, f2x2, f2y2), mask1)
@@ -147,29 +183,6 @@ if __name__ == '__main__':
             # Convert to OpenCV image format
             frame = numpy.array(frame_pil)
 
-            """ PREVIOUS ATTEMPT
-            # Generate masks
-            mask1 = numpy.zeros((h2, w2, 3), numpy.uint8)
-            mask2 = numpy.zeros((h1, w1, 3), numpy.uint8)
-            cv2.circle(mask1,(int(h2/2),int(w2/2)),int(min(h2,w2)/2.5),(255,255,255), int(-1))
-            cv2.circle(mask2,(int(h1/2),int(w1/2)),int(min(h1,w1)/2.5),(255,255,255), int(-1))
-            mask1 = cv2.cvtColor(mask1,cv2.COLOR_BGR2GRAY)
-            mask2 = cv2.cvtColor(mask2,cv2.COLOR_BGR2GRAY)
-            _, mask1 = cv2.threshold(mask1, 127, 255, cv2.THRESH_BINARY)
-            _, mask2 = cv2.threshold(mask2, 127, 255, cv2.THRESH_BINARY)
-
-            # Swap faces
-            frame_bg = cv2.bitwise_and(frame[f1y1:f1y2, f1x1:f1x2],
-                    frame[f1y1:f1y2, f1x1:f1x2], mask = cv2.bitwise_not(mask2))
-            face2_fg = cv2.bitwise_and(face2, face2, mask = mask2)
-            frame[f1y1:f1y2, f1x1:f1x2] = cv2.add(frame_bg, face2_fg)
-
-            frame_bg = cv2.bitwise_and(frame[f2y1:f2y2, f2x1:f2x2],
-                    frame[f2y1:f2y2, f2x1:f2x2], mask = cv2.bitwise_not(mask1))
-            face1_fg = cv2.bitwise_and(face1, face1, mask = mask1)
-            frame[f2y1:f2y2, f2x1:f2x2] = cv2.add(frame_bg, face1_fg)
-            """
-
         # Mostra a imagem na janela do programa
         cv2.imshow('Face Swap', frame)
 
@@ -177,8 +190,8 @@ if __name__ == '__main__':
         if key == 27:
             break
         elif key == ord('s'):
-            print("Saving picture...")
             cv2.imwrite(str(time.time()).replace('.', '')+".png", frame)
+            print("Imagem salva...")
 
     # Fecha a janela do programa
     cv2.destroyAllWindows()
