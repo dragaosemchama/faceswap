@@ -121,9 +121,9 @@ def adjust(im, col, startcol=None):
 # Programa principal
 if __name__ == '__main__':
 
-    # Carregamento um arquivo de treinamento para reconhecimento de padrões
-    # específicos na imagem em um objeto classificador. O arquivo selecionado
-    # contem as informações necessárias para detecção de faces.
+    # Carregamento um arquivo treinado para reconhecimento de padrões.
+    # O arquivo selecionado é treinado para detecção de faces.
+    # Este arquivo pode ser encontrado junto com o download do OpenCV.
     classifier = cv2.CascadeClassifier("haarcascade_frontalface_alt.xml")
 
     # Inicia uma captura de vídeo a partir do primeiro dispositivo de vídeo
@@ -137,58 +137,66 @@ if __name__ == '__main__':
         # Captura e realiza operações sobre a imagem antes da detecção
         # captura um frame
         (_,frame) = camera.read()
-        # redimensiona o frame
+        # redimensiona o frame, se necessário
         #frame = cv2.resize(frame, (320, 240))
 
-        # Realiza uma detecção pelo padrão indicado no classificador sobre
-        # o frame e desenha um retângulo sobre cada padrão identificado
+        # Realiza uma detecção pelo padrão indicado no classificador sobre o
+        # frame; desenha um retângulo sobre cada padrão identificado (opcional)
         (rects, frame) = detect(frame, classifier)
         #frame = box(rects, frame)
 
-        face1 = None
-        face2 = None
-
+        # A troca de faces só será feita quando duas faces forem detectadas
         if len(rects) == 2:
-            # Get face crops
+            # Recorta as duas faces detectadas e armazena em face1 e face2
             f1x1, f1y1, f1x2, f1y2 = rects[0]
             face1 = crop(frame, f1x1, f1x2, f1y1, f1y2)
             f2x1, f2y1, f2x2, f2y2 = rects[1]
             face2 = crop(frame, f2x1, f2x2, f2y1, f2y2)
 
-            # Resize each image to the size of the other
+            # Redimensiona cada uma das faces; face1 assume as dimensões
+            # de face2 e vice-versa.
             (h1, w1) = face1.shape[:2]
             (h2, w2) = face2.shape[:2]
             face1 = resize(face1, h2, w2)
             face2 = resize(face2, h1, w1)
 
-            # Alpha masking is easier with PIL, so convert to PIL images
+            # Operações como ajuste de brilho e aplicação de máscara alpha
+            # serão feitas utilizando PIL (Python Image Library), então criamos
+            # uma representação das imagens como um objeto PIL Image.
             frame_pil = Image.fromarray(frame)
             face1_pil = Image.fromarray(face1)
             face2_pil = Image.fromarray(face2)
 
-            # Adjust brightness of each face
+            # Calcula a cor média de cada uma das faces, aplica essa cor na
+            # outra imagem; face1 terá a cor média de face2 e vice-versa.
             face1_avgcolor = meancol(face1_pil)
             face2_avgcolor = meancol(face2_pil)
             face1_pil = adjust(face1_pil, face2_avgcolor)
             face2_pil = adjust(face2_pil, face1_avgcolor)
 
-            # Generate alpha mask from file
+            # Gera uma máscara alpha para cada face, baseada no padrão de
+            # máscara estabelecido na imagem mask.png.
             mask1 = Image.open('mask2.png').resize((w2,h2))
             mask2 = Image.open('mask2.png').resize((w1,h1))
 
-            # Swap faces using alpha masks
+            # Troca as faces, aplicando a respectiva máscara alpha.
+            # A face1 é posta nas coordenadas da face2 e vice-versa.
             frame_pil.paste(face1_pil, (f2x1, f2y1, f2x2, f2y2), mask1)
             frame_pil.paste(face2_pil, (f1x1, f1y1, f1x2, f1y2), mask2)
 
-            # Convert to OpenCV image format
+            # Converte a imagem no formato PIL para o formato aceito pelo
+            # OpenCV (numpy array)
             frame = numpy.array(frame_pil)
 
         # Mostra a imagem na janela do programa
         cv2.imshow('Face Swap', frame)
 
+        # Captura qualquer tecla pressionada, armazena o código em key
         key = cv2.waitKey(1)
+        # Se a tecla for ESC, fecha o programa
         if key == 27:
             break
+        # Se a tecla for S, salva o frame atual como imagem PNG.
         elif key == ord('s'):
             cv2.imwrite(str(time.time()).replace('.', '')+".png", frame)
             print("Imagem salva...")
