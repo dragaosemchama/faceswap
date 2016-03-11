@@ -52,8 +52,17 @@ coverage.xml
 # Django stuff:
 *.log
 
-# Jpg images
-*.jpg
+# PNG images that start with a number
+0*.png
+1*.png
+2*.png
+3*.png
+4*.png
+5*.png
+6*.png
+7*.png
+8*.png
+9*.png
 
 # Sphinx documentation
 docs/_build/
