@@ -86,9 +86,9 @@ def resize(img, width=None, height=None):
 
     # Escolhe o método de interpolação baseado no tipo de operação
     if width*height < w*h:
-        return cv2.resize(img, (width, height), interpolation = cv2.INTER_AREA);
+        return cv2.resize(img, (width, height), interpolation=cv2.INTER_AREA)
     else:
-        return cv2.resize(img, (width, height), interpolation = cv2.INTER_LINEAR);
+        return cv2.resize(img, (width, height), interpolation=cv2.INTER_LINEAR)
 
 
 # Os dois métodos abaixo foram extraídos de um pequeno script escrito por
