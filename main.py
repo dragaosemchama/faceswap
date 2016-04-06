@@ -18,7 +18,7 @@ def detect(img, classifier):
     """
     # Determina as dimensões mínimas do subconjunto da imagem onde o
     # padrão deverá ser detectado.
-    min_rectangle = (60,60)
+    min_rectangle = (50,50)
 
     rects = classifier.detectMultiScale(img, 1.2, 3, minSize=min_rectangle)
 
@@ -129,7 +129,8 @@ if __name__ == '__main__':
     # Inicia uma captura de vídeo a partir do primeiro dispositivo de vídeo
     # encontrado no computador. Os frames do vídeo serão capturados
     # usando o objeto camera.
-    camera = cv2.VideoCapture(0)
+    #camera = cv2.VideoCapture(0)
+    camera = cv2.VideoCapture("bat vs super.mp4")
 
     # Loop principal
     # Aqui, os frames serão continuamente capturados e processados
@@ -176,8 +177,8 @@ if __name__ == '__main__':
 
             # Gera uma máscara alpha para cada face, baseada no padrão de
             # máscara estabelecido na imagem mask.png.
-            mask1 = Image.open('mask2.png').resize((w2,h2))
-            mask2 = Image.open('mask2.png').resize((w1,h1))
+            mask1 = Image.open('mask.png').resize((w2,h2))
+            mask2 = Image.open('mask.png').resize((w1,h1))
 
             # Troca as faces, aplicando a respectiva máscara alpha.
             # A face1 é posta nas coordenadas da face2 e vice-versa.
