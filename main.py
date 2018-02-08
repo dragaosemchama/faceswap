@@ -139,7 +139,7 @@ if __name__ == '__main__':
         # captura um frame
         (_,frame) = camera.read()
         # redimensiona o frame, se necessário
-        #frame = cv2.resize(frame, (320, 240))
+        frame = cv2.resize(frame, (320, 240))
 
         # Realiza uma detecção pelo padrão indicado no classificador sobre o
         # frame; desenha um retângulo sobre cada padrão identificado (opcional)
